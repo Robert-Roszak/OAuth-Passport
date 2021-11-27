@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const hbs = require('express-handlebars');
+const passport = require('passport');
+const GoogleStrategy = require('passport-google-oauth20').Strategy;
+const session = require('express-session');
 
 const app = express();
 
@@ -13,9 +16,40 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static(path.join(__dirname, '/public')));
 
+passport.use(new GoogleStrategy({
+  clientID: '802385486257-sdekm935p2ft61nnpgsbfvtsnn9bufkb.apps.googleusercontent.com',
+  clientSecret: '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',
+  callbackURL: 'http://localhost:8000/auth/google/callback'
+}, (accessToken, refreshToken, profile, done) => {
+done(null, profile);
+console.log(profile)
+}));
+
+app.use(session({ secret: 'anything' }));
+app.use(passport.initialize());
+app.use(passport.session());
+
+// serialize user when saving to session
+passport.serializeUser((user, serialize) => {
+  serialize(null, user);
+});
+
+// deserialize user when reading from session
+passport.deserializeUser((obj, deserialize) => {
+  deserialize(null, obj);
+});
+
 app.get('/', (req, res) => {
   res.render('index');
 });
+
+app.get('/auth/google', passport.authenticate('google', { scope: ['email', 'profile'] }));
+
+app.get('/auth/google/callback', passport.authenticate('google', { failureRedirect: '/user/no-permission' }),
+  (req, res) => {
+    res.redirect('/user/logged');
+  }
+);
 
 app.get('/user/logged', (req, res) => {
   res.render('logged');
